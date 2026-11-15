@@ -388,6 +388,13 @@ async def get_datasource(req: request.Request, ds_id: int):
                     from common.datasource_util import DatasourceConfigUtil
 
                     config_dict = DatasourceConfigUtil.decrypt_config(configuration)
+                    # 安全修复（S6）：详情接口不得回传明文密码，统一脱敏
+                    if isinstance(config_dict, dict):
+                        _SENSITIVE_KEYS = {"password", "passwd", "pwd", "secret", "api_key"}
+                        config_dict = {
+                            k: ("******" if str(k).lower() in _SENSITIVE_KEYS else v)
+                            for k, v in config_dict.items()
+                        }
                     configuration = json.dumps(config_dict)
                 except Exception as e:
                     logger.error(f"解密配置失败: {e}")

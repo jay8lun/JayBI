@@ -4,6 +4,7 @@
 
 import json
 import logging
+import os
 import platform
 import urllib.parse
 from base64 import b64encode
@@ -1011,55 +1012,72 @@ class DatasourceConnectionUtil:
 
 
 class DatasourceConfigUtil:
-    """数据源配置工具类 - 加密/解密"""
+    """数据源配置工具类 - 加密/解密
 
-    # 简单的加密密钥（生产环境应使用更安全的方式）
-    KEY = b"AixDB12345678901"  # 16字节密钥
+    v2 格式：AES-CBC + 随机 IV，密文带版本前缀 ``enc:v2:``（base64(iv + ciphertext)）。
+    - 主密钥从环境变量 ``DATASOURCE_ENC_KEY`` 读取（长度必须 16/24/32 字节），
+      未设置时回退内置兼容密钥并告警（仅为兼容存量密文与本地开发）。
+    - 旧格式（无前缀，AES-ECB + 硬编码密钥）的存量密文仍可解密，保证平滑迁移；
+      新加密一律使用 v2 格式。
+    - pycryptodome 缺失时直接抛 ImportError（fail-fast），绝不降级为 base64 明文。
+    """
+
+    # 旧版兼容密钥（仅用于解密存量 ECB 密文，不再用于新加密）
+    _LEGACY_KEY = b"AixDB12345678901"  # 16字节密钥
+
+    V2_PREFIX = "enc:v2:"
+
+    @classmethod
+    def _get_key(cls) -> bytes:
+        key = os.getenv("DATASOURCE_ENC_KEY", "")
+        if key:
+            raw = key.encode("utf-8")
+            if len(raw) not in (16, 24, 32):
+                raise RuntimeError(
+                    "DATASOURCE_ENC_KEY 长度必须为 16/24/32 字节（AES-128/192/256）"
+                )
+            return raw
+        logger.warning(
+            "DATASOURCE_ENC_KEY 未设置，回退到内置兼容密钥（仅用于解密存量数据/本地开发，"
+            "生产环境必须显式配置主密钥）"
+        )
+        return cls._LEGACY_KEY
 
     @staticmethod
     def encrypt_config(config: Dict[str, Any]) -> str:
-        """加密配置信息"""
-        try:
-            from Crypto.Cipher import AES
-            from Crypto.Util.Padding import pad
-            import base64
+        """加密配置信息（v2: AES-CBC + 随机 IV）。pycryptodome 缺失时 fail-fast。"""
+        from Crypto.Cipher import AES
+        from Crypto.Util.Padding import pad
+        import base64
 
-            config_str = json.dumps(config)
-            cipher = AES.new(DatasourceConfigUtil.KEY, AES.MODE_ECB)
-            padded_data = pad(config_str.encode("utf-8"), AES.block_size)
-            encrypted = cipher.encrypt(padded_data)
-            return base64.b64encode(encrypted).decode("utf-8")
-        except ImportError:
-            # 如果没有安装pycryptodome，使用简单的base64编码（不安全，仅用于开发）
-            logger.warning("pycryptodome未安装，使用base64编码（不安全）")
-            import base64
-
-            config_str = json.dumps(config)
-            return base64.b64encode(config_str.encode("utf-8")).decode("utf-8")
-        except Exception as e:
-            logger.error(f"加密配置失败: {e}")
-            raise
+        key = DatasourceConfigUtil._get_key()
+        config_str = json.dumps(config)
+        iv = os.urandom(16)
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        encrypted = cipher.encrypt(pad(config_str.encode("utf-8"), AES.block_size))
+        return DatasourceConfigUtil.V2_PREFIX + base64.b64encode(iv + encrypted).decode("utf-8")
 
     @staticmethod
     def decrypt_config(encrypted_config: str) -> Dict[str, Any]:
-        """解密配置信息"""
-        try:
+        """解密配置信息：v2 前缀走 AES-CBC，无前缀走旧版 ECB 兼容路径。"""
+        import base64
+
+        if encrypted_config.startswith(DatasourceConfigUtil.V2_PREFIX):
             from Crypto.Cipher import AES
             from Crypto.Util.Padding import unpad
-            import base64
 
-            encrypted_data = base64.b64decode(encrypted_config)
-            cipher = AES.new(DatasourceConfigUtil.KEY, AES.MODE_ECB)
-            decrypted = cipher.decrypt(encrypted_data)
-            unpadded = unpad(decrypted, AES.block_size)
-            return json.loads(unpadded.decode("utf-8"))
-        except ImportError:
-            # 如果没有安装pycryptodome，使用简单的base64解码
-            logger.warning("pycryptodome未安装，使用base64解码")
-            import base64
+            key = DatasourceConfigUtil._get_key()
+            raw = base64.b64decode(encrypted_config[len(DatasourceConfigUtil.V2_PREFIX):])
+            iv, ciphertext = raw[:16], raw[16:]
+            cipher = AES.new(key, AES.MODE_CBC, iv)
+            decrypted = unpad(cipher.decrypt(ciphertext), AES.block_size)
+            return json.loads(decrypted.decode("utf-8"))
 
-            config_str = base64.b64decode(encrypted_config).decode("utf-8")
-            return json.loads(config_str)
-        except Exception as e:
-            logger.error(f"解密配置失败: {e}")
-            raise
+        # ---- 旧格式兼容：AES-ECB + 遗留密钥（不再新增此类密文） ----
+        from Crypto.Cipher import AES
+        from Crypto.Util.Padding import unpad
+
+        encrypted_data = base64.b64decode(encrypted_config)
+        cipher = AES.new(DatasourceConfigUtil._LEGACY_KEY, AES.MODE_ECB)
+        decrypted = unpad(cipher.decrypt(encrypted_data), AES.block_size)
+        return json.loads(decrypted.decode("utf-8"))

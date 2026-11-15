@@ -127,6 +127,60 @@ app.extend(
 app.route("/")(lambda _: empty())
 
 
+# ============================================================
+# 全局 HTTP 鉴权中间件（P0-S1 修复）
+# 此前鉴权靠各 handler 手写 @check_token，覆盖率严重不均
+# （permission/aimodel/skill/file_chat 等接口 0 鉴权）。
+# 现改为：白名单外所有请求必须携带有效 JWT，统一 401 语义。
+# 新增公开接口时必须显式加入白名单（安全默认值）。
+# ============================================================
+import jwt  # noqa: E402
+from sanic import response as _sanic_response  # noqa: E402
+
+_AUTH_WHITELIST_EXACT = {"/", "/favicon.ico", "/health", "/healthz"}
+_AUTH_WHITELIST_PREFIXES = (
+    "/user/login", "/user/register",
+    "/docs", "/swagger", "/redoc", "/openapi",  # API 文档（sanic-ext）
+    "/static/", "/favicon",
+)
+
+
+@app.middleware("request")
+async def global_auth_middleware(request):
+    path = request.path
+    # 兼容容器内 nginx 代理可能保留的 /sanic 前缀
+    if path.startswith("/sanic"):
+        path = path[len("/sanic"):] or "/"
+
+    # CORS 预检不携带业务头，直接放行
+    if request.method == "OPTIONS":
+        return None
+    if path in _AUTH_WHITELIST_EXACT or any(
+        path.startswith(p) for p in _AUTH_WHITELIST_PREFIXES
+    ):
+        return None
+
+    token = request.headers.get("Authorization", "")
+    if token.startswith("Bearer "):
+        token = token.split(" ", 1)[1].strip()
+    if not token:
+        return _sanic_response.json(
+            {"code": 401, "msg": "未登录或缺少认证信息", "data": None}, status=401
+        )
+    try:
+        payload = jwt.decode(token, key=os.environ["JWT_SECRET_KEY"], algorithms=["HS256"])
+        request.ctx.user_payload = payload  # 后续 handler 可直接复用
+    except jwt.ExpiredSignatureError:
+        return _sanic_response.json(
+            {"code": 401, "msg": "登录已过期，请重新登录", "data": None}, status=401
+        )
+    except Exception:
+        return _sanic_response.json(
+            {"code": 401, "msg": "无效的认证信息", "data": None}, status=401
+        )
+    return None
+
+
 def get_server_config():
     """获取服务器配置参数"""
     workers = int(os.getenv("SERVER_WORKERS", 2))

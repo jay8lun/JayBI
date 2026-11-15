@@ -82,7 +82,10 @@ class Text2SqlAgent:
         try:
             # 获取用户信息（只调用一次）
             user_dict = await decode_jwt_token(user_token)
-            user_id = user_dict.get("id", 1)  # 默认为管理员
+            user_id = user_dict.get("id")
+            if user_id is None:
+                # fail-close：token 缺少用户 id 时拒绝执行，绝不默认为管理员
+                raise PermissionError("token 中缺少用户 id，无法进行权限校验，已拒绝执行")
             task_id = user_dict["id"]
 
             initial_state = AgentState(

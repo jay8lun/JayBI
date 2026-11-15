@@ -326,6 +326,10 @@ async def user_add(request: Request, body: AddUserRequest):
     :param body:
     :return:
     """
+    # 安全修复（S6）：用户管理操作仅限管理员
+    from common.permission_util import check_admin_permission
+
+    await check_admin_permission(request)
     return await add_user(body.userName, body.password, body.mobile)
 
 
@@ -349,6 +353,10 @@ async def user_update(request: Request, body: UpdateUserRequest):
     :param body:
     :return:
     """
+    # 安全修复（S6）：用户管理操作仅限管理员
+    from common.permission_util import check_admin_permission
+
+    await check_admin_permission(request)
     return await update_user(body.id, body.userName, body.mobile, body.password)
 
 
@@ -372,4 +380,17 @@ async def user_delete(request: Request, body: DeleteUserRequest):
     :param body:
     :return:
     """
+    # 安全修复（S6）：删除用户仅限管理员，且禁止删除管理员账号（防提权/接管）
+    from common.permission_util import check_admin_permission
+
+    await check_admin_permission(request)
+    from common.exception import MyException
+    from constants.code_enum import SysCodeEnum
+    from model.db_connection_pool import get_db_pool
+    from model.user_models import TUser
+
+    with get_db_pool().get_session() as session:
+        target = session.query(TUser).filter(TUser.id == body.id).first()
+        if target and target.role == "admin":
+            raise MyException(SysCodeEnum.c_401, "不允许删除管理员账号")
     return await delete_user(body.id)

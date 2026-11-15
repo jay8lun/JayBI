@@ -70,7 +70,13 @@ async def get_answer(req: Request, body: LLMGetAnswerRequest):
             from sanic import response
             
             user_dict = await decode_jwt_token(token)
-            user_id = user_dict.get("id", 1)
+            user_id = user_dict.get("id")
+            if user_id is None:
+                # fail-close：token 缺少用户 id，拒绝执行（绝不默认为管理员）
+                return response.json(
+                    {"code": 401, "msg": "token 中缺少用户信息，请重新登录", "data": None},
+                    status=401,
+                )
             datasource_id = req_dict.get("datasource_id")
             
             # 管理员跳过权限检查
