@@ -95,3 +95,6 @@ graphify-out/
 .env.dev
 .env.pro
 .env.test
+
+# WorkBuddy 工作区数据
+.workbuddy/
