@@ -41,7 +41,7 @@ if not root_logger.handlers:
         force=True,
     )
 
-app = Sanic("Aix-DB", configure_logging=False)
+app = Sanic("JayBI", configure_logging=False)
 
 
 # 确保在每个 worker 启动时都重新加载日志配置
@@ -118,8 +118,8 @@ app.extend(
         "OAS_PATH_TO_SWAGGER_HTML": "docs/swagger.html",
         "OAS_UI_DEFAULT": "swagger",
         "OAS_VERSION": "3.1.0",
-        "OAS_TITLE": "Aix-DB API",
-        "OAS_DESCRIPTION": "Aix-DB API 接口文档",
+        "OAS_TITLE": "JayBI API",
+        "OAS_DESCRIPTION": "JayBI API 接口文档",
         "OAS_VERSION_STRING": "1.0.0",
     }
 )

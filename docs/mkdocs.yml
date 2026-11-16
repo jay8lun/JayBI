@@ -1,4 +1,4 @@
-site_name: 大模型数据助手
+site_name: JayBI - 大模型数据助手
 nav:
     - 🏠 首页: index.md
     - ⚙️ 环境配置: environment.md
