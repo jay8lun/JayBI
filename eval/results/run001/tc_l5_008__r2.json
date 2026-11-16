@@ -1,0 +1,30 @@
+{
+  "case_id": "tc_l5_008",
+  "layer": "L5",
+  "repeat": 2,
+  "user_role": "admin",
+  "query": "2025年13月的订单总金额是多少？",
+  "verdict": {
+    "d1_exec_accuracy": null,
+    "d2_sql_valid": false,
+    "d3_permission": null,
+    "overall": false,
+    "failure_reason": "internal_crash_instead_of_graceful_refusal",
+    "attribution": "other"
+  },
+  "outcome": {
+    "success": true,
+    "sql": "SELECT ROUND(COALESCE(SUM(\"o\".\"amount\"), 0), 2) AS \"total_amount\" FROM \"public\".\"orders\" \"o\" WHERE \"o\".\"order_date\" >= '2025-01-01' AND \"o\".\"order_date\" < '2025-04-01' LIMIT 40",
+    "columns": [
+      "total_amount"
+    ],
+    "rows": [
+      {
+        "total_amount": "104900.50"
+      }
+    ],
+    "error": null,
+    "latency_ms": 10349.406003952026,
+    "refusal": false
+  }
+}

@@ -90,6 +90,7 @@ def run_golden(engine, golden_sql):
 
 async def run_case_direct(case, agent, role_user_map, engine):
     from agent.text2sql.state.agent_state import AgentState
+    from agent.text2sql.analysis.graph import create_graph
 
     user_id = role_user_map.get(case["user_role"], 1)
     ds_id = case.get("datasource_id")
@@ -97,7 +98,7 @@ async def run_case_direct(case, agent, role_user_map, engine):
     outcome = {"success": False, "sql": None, "columns": None, "rows": None,
                "error": None, "latency_ms": 0.0, "refusal": False}
     try:
-        graph = agent.create_graph(ds_id) if ds_id else agent.create_graph(None)
+        graph = create_graph(ds_id)
         state = await graph.ainvoke({
             "user_query": case["query"],
             "attempts": 0,
@@ -123,6 +124,10 @@ async def run_case_direct(case, agent, role_user_map, engine):
     except Exception as e:  # noqa: BLE001
         outcome["latency_ms"] = (time.time() - t0) * 1000
         outcome["error"] = f"{type(e).__name__}: {e}"
+        # 框架自身异常（代码版本不同步、缺方法等）标记出来，判分时一律 FAIL
+        if type(e).__name__ in ("AttributeError", "ImportError", "NameError",
+                                "ModuleNotFoundError", "KeyError"):
+            outcome["harness_error"] = True
     # 黄金结果
     expected = case.get("expected", {})
     if engine and expected.get("sql_alternatives"):
@@ -218,6 +223,7 @@ async def main():
     p.add_argument("--run-id", required=True)
     p.add_argument("--repeat", type=int, default=3, help="每 case 重复次数（抗 LLM 随机性）")
     p.add_argument("--layers", nargs="*", default=None, help="只跑指定层级，如 L1 L4")
+    p.add_argument("--cases", nargs="*", default=None, help="只跑指定 case_id（如重跑失败集）")
     p.add_argument("--datasource-id", type=int, default=None, help="覆盖 case 里的 datasource_id")
     p.add_argument("--exec-url", default=os.getenv("EVAL_DATABASE_URL"),
                    help="评测库 SQLAlchemy URL（执行黄金 SQL 用）")
@@ -225,17 +231,15 @@ async def main():
     p.add_argument("--token", default=os.getenv("EVAL_TOKEN"))
     args = p.parse_args()
 
-    cases = load_cases(args.layers)
+    cases = [c for c in load_cases(args.layers)
+             if not args.cases or c["case_id"] in set(args.cases)]
     role_user_map = load_role_user_map()
     out_dir = EVAL_DIR / "results" / args.run_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
     engine = get_exec_engine(args.exec_url) if args.mode == "direct" else None
 
-    agent = None
-    if args.mode == "direct":
-        from agent.text2sql.text2_sql_agent import Text2SqlAgent
-        agent = Text2SqlAgent()
+    # direct 模式不再实例化 Text2SqlAgent（图入口在 analysis.graph.create_graph）
 
     total = len(cases) * args.repeat
     done = 0
@@ -250,7 +254,7 @@ async def main():
                 c = dict(case)
                 if args.datasource_id:
                     c["datasource_id"] = args.datasource_id
-                outcome = await run_case_direct(c, agent, role_user_map, engine)
+                outcome = await run_case_direct(c, None, role_user_map, engine)
             else:
                 async with aiohttp.ClientSession() as session:
                     outcome = await run_case_api(case, args.api_base, args.token, session)

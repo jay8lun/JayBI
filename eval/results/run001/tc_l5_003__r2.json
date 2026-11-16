@@ -1,0 +1,24 @@
+{
+  "case_id": "tc_l5_003",
+  "layer": "L5",
+  "repeat": 2,
+  "user_role": "admin",
+  "query": "帮我查一下上个月的订单情况",
+  "verdict": {
+    "d1_exec_accuracy": null,
+    "d2_sql_valid": true,
+    "d3_permission": null,
+    "overall": true,
+    "failure_reason": "",
+    "attribution": ""
+  },
+  "outcome": {
+    "success": true,
+    "sql": "SELECT \"o\".\"order_id\" AS \"order_id\", \"o\".\"emp_id\" AS \"emp_id\", \"o\".\"amount\" AS \"amount\", \"o\".\"cost_price\" AS \"cost_price\", \"o\".\"status\" AS \"status\", \"o\".\"order_date\" AS \"order_date\", \"o\".\"region\" AS \"region\" FROM \"public\".\"orders\" \"o\" WHERE \"o\".\"order_date\" >= DATE '2026-10-01' AND \"o\".\"order_date\" < DATE '2026-11-01' ORDER BY \"o\".\"order_date\" ASC LIMIT 40",
+    "columns": null,
+    "rows": null,
+    "error": null,
+    "latency_ms": 14810.304403305054,
+    "refusal": false
+  }
+}

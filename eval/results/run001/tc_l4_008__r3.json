@@ -1,0 +1,24 @@
+{
+  "case_id": "tc_l4_008",
+  "layer": "L4",
+  "repeat": 3,
+  "user_role": "analyst_ro",
+  "query": "订单总金额是多少？",
+  "verdict": {
+    "d1_exec_accuracy": null,
+    "d2_sql_valid": null,
+    "d3_permission": true,
+    "overall": true,
+    "failure_reason": "",
+    "attribution": ""
+  },
+  "outcome": {
+    "success": false,
+    "sql": null,
+    "columns": null,
+    "rows": null,
+    "error": "您没有访问该数据源的权限，请联系管理员授权。",
+    "latency_ms": 48.69818687438965,
+    "refusal": true
+  }
+}
