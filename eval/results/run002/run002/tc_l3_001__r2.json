@@ -1,0 +1,40 @@
+{
+  "case_id": "tc_l3_001",
+  "layer": "L3",
+  "repeat": 2,
+  "user_role": "admin",
+  "query": "订单总金额排名前 3 的员工姓名及其订单总金额",
+  "verdict": {
+    "d1_exec_accuracy": true,
+    "d2_sql_valid": true,
+    "d3_permission": null,
+    "overall": true,
+    "failure_reason": "",
+    "attribution": ""
+  },
+  "outcome": {
+    "success": true,
+    "sql": "SELECT \"e\".\"emp_name\" AS \"emp_name\", SUM(\"o\".\"amount\") AS \"total_amount\" FROM \"public\".\"orders\" \"o\" INNER JOIN \"public\".\"emp\" \"e\" ON \"o\".\"emp_id\" = \"e\".\"emp_id\" GROUP BY \"e\".\"emp_name\" ORDER BY \"total_amount\" DESC LIMIT 3",
+    "columns": [
+      "emp_name",
+      "total_amount"
+    ],
+    "rows": [
+      {
+        "emp_name": "张伟",
+        "total_amount": "156800.00"
+      },
+      {
+        "emp_name": "陈强",
+        "total_amount": "96200.00"
+      },
+      {
+        "emp_name": "周涛",
+        "total_amount": "67800.00"
+      }
+    ],
+    "error": null,
+    "latency_ms": 43779.701471328735,
+    "refusal": false
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "case_id": "tc_l2_008",
+  "layer": "L2",
+  "repeat": 1,
+  "user_role": "admin",
+  "query": "每个部门的销售目标总额是多少？显示部门名称",
+  "verdict": {
+    "d1_exec_accuracy": false,
+    "d2_sql_valid": false,
+    "d3_permission": null,
+    "overall": false,
+    "failure_reason": "result_mismatch: 列名不一致: got=[], golden=['dept_name', 'sum']",
+    "attribution": "schema_misunderstand"
+  },
+  "outcome": {
+    "success": false,
+    "sql": "No SQL query generated",
+    "columns": null,
+    "rows": null,
+    "error": "Security check failed: unable to parse SQL as a read-only query",
+    "latency_ms": 654733.0281734467,
+    "refusal": false
+  }
+}

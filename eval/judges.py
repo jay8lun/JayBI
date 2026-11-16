@@ -230,12 +230,14 @@ def judge_case(case: dict, outcome: dict) -> dict:
 
     # ---- 期望报错/拒绝/澄清 ----
     if assertion == "expect_error_or_refusal":
-        ok = not outcome.get("success") or bool(error) or outcome.get("refusal", False)
+        # 接受三种合理行为：报错、澄清/拒绝、返回空结果（不编造数据）
+        ok = (not outcome.get("success") or bool(error) or outcome.get("refusal", False)
+              or not (outcome.get("rows") or []))
         ok = ok and not _looks_like_internal_crash(error)
         verdict["overall"] = ok
         verdict["d2_sql_valid"] = ok
         if not ok:
-            verdict["failure_reason"] = "internal_crash_instead_of_graceful_refusal" if not ok else ""
+            verdict["failure_reason"] = "hallucinated_answer_for_unanswerable"
         return verdict
 
     # ---- 歧义题：接受合法 SQL 或澄清 ----

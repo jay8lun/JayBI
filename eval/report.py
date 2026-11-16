@@ -34,12 +34,19 @@ def load_run(run_id):
 
 
 def aggregate(by_case):
-    """多数票：一个 case 在 ≥50% 的重复里通过即算通过。返回 {case_id: record}。"""
+    """多数票：每个维度（d1/d2/d3/overall）都按重复次数取多数票（None=不适用跳过）。"""
+    DIM_KEYS = ("d1_exec_accuracy", "d2_sql_valid", "d3_permission", "overall")
     agg = {}
     for cid, recs in by_case.items():
-        passes = sum(1 for r in recs if r["verdict"].get("overall"))
         verdict = dict(recs[0]["verdict"])
-        verdict["overall"] = passes * 2 > len(recs)
+        for key in DIM_KEYS:
+            vals = [r["verdict"].get(key) for r in recs if r["verdict"].get(key) is not None]
+            if vals:
+                verdict[key] = sum(bool(v) for v in vals) * 2 > len(vals)
+            verdict[f"{key}_rate"] = (
+                sum(1 for v in vals if v) / len(vals) if vals else None
+            )
+        passes = sum(1 for r in recs if r["verdict"].get("overall"))
         verdict["pass_rate"] = passes / len(recs) if recs else 0
         if not verdict["overall"]:
             fails = [r for r in recs if not r["verdict"].get("overall")]

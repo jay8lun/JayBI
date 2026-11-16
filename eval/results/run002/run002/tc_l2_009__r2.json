@@ -1,0 +1,49 @@
+{
+  "case_id": "tc_l2_009",
+  "layer": "L2",
+  "repeat": 2,
+  "user_role": "admin",
+  "query": "每个地区已完成（completed）订单的总金额和订单数",
+  "verdict": {
+    "d1_exec_accuracy": true,
+    "d2_sql_valid": true,
+    "d3_permission": null,
+    "overall": true,
+    "failure_reason": "",
+    "attribution": ""
+  },
+  "outcome": {
+    "success": true,
+    "sql": "SELECT \"o\".\"region\" AS \"region_name\", SUM(\"o\".\"amount\") AS \"total_amount\", COUNT(\"o\".\"order_id\") AS \"order_count\" FROM \"public\".\"orders\" \"o\" WHERE \"o\".\"status\" = 'completed' GROUP BY \"o\".\"region\" ORDER BY \"total_amount\" DESC, \"region\" ASC LIMIT 40",
+    "columns": [
+      "region_name",
+      "total_amount",
+      "order_count"
+    ],
+    "rows": [
+      {
+        "region_name": "华东",
+        "total_amount": "251400.50",
+        "order_count": 11
+      },
+      {
+        "region_name": "华南",
+        "total_amount": "115700.00",
+        "order_count": 4
+      },
+      {
+        "region_name": "华北",
+        "total_amount": "74900.00",
+        "order_count": 3
+      },
+      {
+        "region_name": "西南",
+        "total_amount": "40000.00",
+        "order_count": 1
+      }
+    ],
+    "error": null,
+    "latency_ms": 23701.102018356323,
+    "refusal": false
+  }
+}
