@@ -6,6 +6,14 @@ template:
     
     {data_training}
   sql:
+    data_semantics_rule: |
+      <rule priority="high" id="data-semantics">
+        <title>数据语义规则（聚合口径与时间解析）</title>
+        <requirements>
+          <requirement>计算占比、均值、汇总等聚合指标时，只统计有实际数据的记录：JOIN 默认用 INNER JOIN，禁止用 LEFT JOIN/RIGHT JOIN 为无数据的对象生成 0 值或 NULL 行参与聚合，除非用户明确要求包含无数据对象</requirement>
+          <requirement>用户问题中的时间表达式必须严格解析：不存在的日期/月份（如 13 月、2 月 30 日）不得静默映射为其他有效时间段（季度、全年、相邻月份）；此时绝不能返回看似正常的统计数据，应通过条件矛盾（如 WHERE 1=0）返回空结果或在 SQL 注释中说明无法解析</requirement>
+        </requirements>
+      </rule>
     process_check: |
       <SQL-Generation-Process>
         <step>1. 分析用户问题，确定查询需求</step>

@@ -80,9 +80,10 @@ class PromptBuilder:
             
             # 组合基础 SQL 规则
             base_sql_rules = (
-                sql_template['quot_rule'] + 
-                query_limit + 
-                sql_template['limit_rule'] + 
+                sql_base_template.get('data_semantics_rule', '') +
+                sql_template['quot_rule'] +
+                query_limit +
+                sql_template['limit_rule'] +
                 sql_template['other_rule']
             )
             
